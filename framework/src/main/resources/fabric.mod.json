@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "shenji_framework",
+  "version": "${version}",
+  "name": "Shenji Framework",
+  "description": "Shared technical library for Shenji mods.",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["shenji.framework.ShenjiFramework"]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=${java_version}"
+  }
+}

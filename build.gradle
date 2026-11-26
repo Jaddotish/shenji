@@ -1,0 +1,38 @@
+plugins {
+    id 'base'
+    id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
+}
+
+subprojects {
+    apply plugin: 'net.fabricmc.fabric-loom'
+
+    group = 'shenji'
+    version = mod_version
+
+    base {
+        archivesName = "shenji-${project.name}"
+    }
+
+    java {
+        toolchain.languageVersion = JavaLanguageVersion.of(java_version.toInteger())
+    }
+
+    dependencies {
+        minecraft "com.mojang:minecraft:${minecraft_version}"
+        implementation "net.fabricmc:fabric-loader:${loader_version}"
+    }
+
+    def metadata = [
+        version: version,
+        minecraft_version: minecraft_version,
+        loader_version: loader_version,
+        java_version: java_version
+    ]
+
+    tasks.named('processResources') {
+        inputs.properties(metadata)
+        filesMatching('fabric.mod.json') {
+            expand(metadata)
+        }
+    }
+}

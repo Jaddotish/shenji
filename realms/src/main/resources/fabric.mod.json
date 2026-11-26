@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "shenji_realms",
+  "version": "${version}",
+  "name": "Shenji Realms",
+  "environment": "*",
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=${java_version}",
+    "shenji_framework": ">=${version}"
+  }
+}

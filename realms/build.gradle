@@ -1,0 +1,12 @@
+dependencies {
+    implementation project(':framework')
+}
+
+loom {
+    runs {
+        client {
+            generateRunConfig = true
+            preferGradleTask = true
+        }
+    }
+}
