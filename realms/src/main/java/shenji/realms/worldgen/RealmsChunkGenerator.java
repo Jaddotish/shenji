@@ -1,13 +1,13 @@
 package shenji.realms.worldgen;
 
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.WorldGenRegion;
-import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.LevelHeightAccessor;
-import net.minecraft.world.level.NoiseColumn;
-import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.*;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
@@ -15,10 +15,13 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
+import net.minecraft.world.level.levelgen.FlatLevelSource;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -27,13 +30,20 @@ import java.util.concurrent.CompletableFuture;
 
 public class RealmsChunkGenerator extends ChunkGenerator {
 
+    public static final MapCodec<RealmsChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(
+            i -> i.group(BiomeSource.CODEC
+                    .fieldOf("biome_source")
+                    .forGetter(RealmsChunkGenerator::getBiomeSource))
+            .apply(i, i.stable(RealmsChunkGenerator::new))
+    );
+
     public RealmsChunkGenerator(final BiomeSource biomesource) {
         super(biomesource);
     }
 
     @Override
     protected MapCodec<? extends ChunkGenerator> codec() {
-        return null;
+        return CODEC;
     }
 
     @Override
@@ -115,6 +125,23 @@ public class RealmsChunkGenerator extends ChunkGenerator {
 
     @Override
     public void addDebugScreenInfo(List<String> result, RandomState randomState, BlockPos feetPos, SamplerContext samplerContext) {
+
+    }
+
+    @Override
+    public void applyBiomeDecoration(final WorldGenLevel level, final ChunkAccess chunk, final StructureManager structureManager) {
+
+    }
+
+    @Override
+    public void createStructures(
+            final RegistryAccess registryAccess,
+            final ChunkGeneratorStructureState state,
+            final StructureManager structureManager,
+            final ChunkAccess centerChunk,
+            final StructureTemplateManager structureTemplateManager,
+            final ResourceKey<Level> level
+    ) {
 
     }
 

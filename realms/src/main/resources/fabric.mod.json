@@ -3,9 +3,14 @@
   "id": "shenji_realms",
   "version": "${version}",
   "name": "Shenji Realms",
+  "description": "Custom terrain, biomes, and world generation for Shenji.",
   "environment": "*",
+  "entrypoints": {
+    "main": ["shenji.realms.Realms"]
+  },
   "depends": {
     "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
     "minecraft": "~${minecraft_version}",
     "java": ">=${java_version}",
     "shenji_framework": ">=${version}"

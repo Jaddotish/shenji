@@ -6,7 +6,7 @@
   "description": "Shared technical library for Shenji mods.",
   "environment": "*",
   "entrypoints": {
-    "main": ["shenji.framework.ShenjiFramework"]
+    "main": ["shenji.framework.Framework"]
   },
   "depends": {
     "fabricloader": ">=${loader_version}",
