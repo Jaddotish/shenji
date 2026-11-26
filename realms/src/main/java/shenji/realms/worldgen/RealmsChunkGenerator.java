@@ -23,6 +23,7 @@ import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import org.jspecify.annotations.Nullable;
+import shenji.realms.worldgen.noise.ValueNoise;
 
 import java.util.List;
 import java.util.Set;
@@ -152,6 +153,6 @@ public class RealmsChunkGenerator extends ChunkGenerator {
         int y = worldY;
         int z = worldZ;
 
-        return -y + 1; // trivial temporary terrain equation
+        return -y + 64 + 30 * ValueNoise.sample(0L, x, z, 128);
     }
 }
