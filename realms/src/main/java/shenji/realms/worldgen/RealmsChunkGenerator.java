@@ -24,7 +24,8 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 import org.jspecify.annotations.Nullable;
 import shenji.realms.worldgen.noise.NoiseFactory;
 import shenji.realms.worldgen.noise.SeedContext;
-import shenji.realms.worldgen.terrain.PerlinTerrainProfile;
+import shenji.realms.worldgen.terrain.KarstParameters;
+import shenji.realms.worldgen.terrain.KarstTerrainProfile;
 import shenji.realms.worldgen.terrain.TerrainProfile;
 import shenji.realms.worldgen.terrain.interpolation.ChunkDensityCache;
 import shenji.realms.worldgen.terrain.interpolation.ChunkDensityGrid;
@@ -181,7 +182,7 @@ public class RealmsChunkGenerator extends ChunkGenerator {
                 key -> {
                     SeedContext seedContext = new SeedContext(key);
                     NoiseFactory noiseFactory = new NoiseFactory(seedContext);
-                    return new PerlinTerrainProfile(noiseFactory);
+                    return new KarstTerrainProfile(noiseFactory, KarstParameters.defaults());
                 }
             );
     }

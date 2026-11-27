@@ -29,6 +29,10 @@ public class NoiseFactory {
         return adapt3D(noise);
     }
 
+    public CellularPointSampler createCellular(String name, double cellSize) {
+        long seed = seedContext.deriveSeed(name);
+        return new CellularPointSampler(seed, cellSize);
+    }
 
     // creates the noise
     private FastNoiseLite createNoise(String name, Consumer<FastNoiseLite> configure) {
@@ -39,4 +43,5 @@ public class NoiseFactory {
 
         return noise;
     }
+
 }
