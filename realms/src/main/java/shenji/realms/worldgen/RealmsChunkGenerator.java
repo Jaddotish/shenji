@@ -26,6 +26,8 @@ import shenji.realms.worldgen.noise.NoiseFactory;
 import shenji.realms.worldgen.noise.SeedContext;
 import shenji.realms.worldgen.terrain.PerlinTerrainProfile;
 import shenji.realms.worldgen.terrain.TerrainProfile;
+import shenji.realms.worldgen.terrain.interpolation.ChunkDensityCache;
+import shenji.realms.worldgen.terrain.interpolation.ChunkDensityGrid;
 
 import java.util.List;
 import java.util.Set;
@@ -42,6 +44,7 @@ public class RealmsChunkGenerator extends ChunkGenerator {
     );
 
     private final ConcurrentHashMap<RandomState, TerrainProfile> terrainProfiles = new ConcurrentHashMap<>();
+    private final ChunkDensityCache densityCache = new ChunkDensityCache();
 
     public RealmsChunkGenerator(final BiomeSource biomesource) {
         super(biomesource);
@@ -73,10 +76,12 @@ public class RealmsChunkGenerator extends ChunkGenerator {
         int minY = chunk.getMinY();
         int maxY = chunk.getMaxY();
 
+        ChunkDensityGrid densityGrid = densityCache.getDensityGrid(terrainProfile, randomState, pos.x(), pos.z(), minY, chunk.getHeight());
+
         for (int x = worldX; x < worldX + 16; x++) {
             for (int z = worldZ; z < worldZ + 16; z++) {
                 for (int y = minY; y <= maxY; y++) {
-                    double density = terrainProfile.sampleDensity(x, y, z);
+                    double density = densityGrid.sampleDensity(x, y, z);
 
                     if (density > 0) {
                         chunk.setBlockState(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState());
@@ -104,8 +109,15 @@ public class RealmsChunkGenerator extends ChunkGenerator {
 
         int minY = heightAccessor.getMinY();
         int maxY = heightAccessor.getMaxY();
+
+        int chunkX = Math.floorDiv(x, 16);
+        int chunkZ = Math.floorDiv(z, 16);
+
+        ChunkDensityGrid densityGrid = densityCache.getDensityGrid(terrainProfile, randomState, chunkX, chunkZ, minY, heightAccessor.getHeight());
+
         for (int y = maxY; y >= minY; y--) {
-            if (terrainProfile.sampleDensity(x, y, z) > 0) {
+            double density = densityGrid.sampleDensity(x, y, z);
+            if (density > 0) {
                 return y + 1;
             }
         }
@@ -121,9 +133,13 @@ public class RealmsChunkGenerator extends ChunkGenerator {
         int minY = heightAccessor.getMinY();
         BlockState[] column = new BlockState[height];
 
-        // temporary math shit
+        int chunkX = Math.floorDiv(x, 16);
+        int chunkZ = Math.floorDiv(z, 16);
+
+        ChunkDensityGrid densityGrid = densityCache.getDensityGrid(terrainProfile, randomState, chunkX, chunkZ, minY, heightAccessor.getHeight());
+
         for (int i = 0; i < height; i++) {
-            double density = terrainProfile.sampleDensity(x, minY + i, z);
+            double density = densityGrid.sampleDensity(x, minY + i, z);
 
             if (density > 0) {
                 column[i] = Blocks.STONE.defaultBlockState();

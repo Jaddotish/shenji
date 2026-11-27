@@ -1,6 +1,11 @@
 dependencies {
     implementation project(':framework')
     implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+
+    def caffeine = "com.github.ben-manes.caffeine:caffeine:${caffeine_version}"
+    implementation caffeine
+    // Loom bundles Caffeine and its license files. Its transitive dependencies are annotations.
+    include caffeine
 }
 
 loom {
