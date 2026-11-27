@@ -16,18 +16,21 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
-import net.minecraft.world.level.levelgen.FlatLevelSource;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import org.jspecify.annotations.Nullable;
-import shenji.realms.worldgen.noise.ValueNoise;
+import shenji.realms.worldgen.noise.NoiseFactory;
+import shenji.realms.worldgen.noise.SeedContext;
+import shenji.realms.worldgen.terrain.PerlinTerrainProfile;
+import shenji.realms.worldgen.terrain.TerrainProfile;
 
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RealmsChunkGenerator extends ChunkGenerator {
 
@@ -37,6 +40,8 @@ public class RealmsChunkGenerator extends ChunkGenerator {
                     .forGetter(RealmsChunkGenerator::getBiomeSource))
             .apply(i, i.stable(RealmsChunkGenerator::new))
     );
+
+    private final ConcurrentHashMap<RandomState, TerrainProfile> terrainProfiles = new ConcurrentHashMap<>();
 
     public RealmsChunkGenerator(final BiomeSource biomesource) {
         super(biomesource);
@@ -59,6 +64,8 @@ public class RealmsChunkGenerator extends ChunkGenerator {
 
     @Override
     public CompletableFuture<ChunkAccess> buildTerrain(ChunkAccess chunk, Blender blender, RandomState randomState, StructureManager structureManager, BiomeManager biomeManager, @Nullable WorldGenRegion carverBiomeRegion, Set<Holder<Biome>> possibleBiomes) {
+        TerrainProfile terrainProfile = getTerrainProfile(randomState);
+
         ChunkPos pos = chunk.getPos();
         int worldX = pos.getMinBlockX();
         int worldZ = pos.getMinBlockZ();
@@ -69,7 +76,7 @@ public class RealmsChunkGenerator extends ChunkGenerator {
         for (int x = worldX; x < worldX + 16; x++) {
             for (int z = worldZ; z < worldZ + 16; z++) {
                 for (int y = minY; y <= maxY; y++) {
-                    double density = sampleDensity(x, y, z);
+                    double density = terrainProfile.sampleDensity(x, y, z);
 
                     if (density > 0) {
                         chunk.setBlockState(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState());
@@ -93,10 +100,12 @@ public class RealmsChunkGenerator extends ChunkGenerator {
 
     @Override
     public int getBaseHeight(int x, int z, Heightmap.Types type, LevelHeightAccessor heightAccessor, RandomState randomState) {
+        TerrainProfile terrainProfile = getTerrainProfile(randomState);
+
         int minY = heightAccessor.getMinY();
         int maxY = heightAccessor.getMaxY();
         for (int y = maxY; y >= minY; y--) {
-            if (sampleDensity(x, y, z) > 0) {
+            if (terrainProfile.sampleDensity(x, y, z) > 0) {
                 return y + 1;
             }
         }
@@ -106,13 +115,15 @@ public class RealmsChunkGenerator extends ChunkGenerator {
 
     @Override
     public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor heightAccessor, RandomState randomState) {
+        TerrainProfile terrainProfile = getTerrainProfile(randomState);
+
         int height = heightAccessor.getHeight();
         int minY = heightAccessor.getMinY();
         BlockState[] column = new BlockState[height];
 
         // temporary math shit
         for (int i = 0; i < height; i++) {
-            double density = sampleDensity(x, minY + i, z);
+            double density = terrainProfile.sampleDensity(x, minY + i, z);
 
             if (density > 0) {
                 column[i] = Blocks.STONE.defaultBlockState();
@@ -148,11 +159,14 @@ public class RealmsChunkGenerator extends ChunkGenerator {
 
 
 
-    private double sampleDensity(int worldX, int worldY, int worldZ) {
-        int x = worldX;
-        int y = worldY;
-        int z = worldZ;
-
-        return -y + 64 + 30 * ValueNoise.sample(0L, x, z, 128);
+    private TerrainProfile getTerrainProfile(RandomState randomState) {
+        return terrainProfiles.computeIfAbsent(
+                randomState,
+                key -> {
+                    SeedContext seedContext = new SeedContext(key);
+                    NoiseFactory noiseFactory = new NoiseFactory(seedContext);
+                    return new PerlinTerrainProfile(noiseFactory);
+                }
+            );
     }
 }
