@@ -5,11 +5,14 @@ public record KarstParameters(
         SummitParameters summit,
         GroundParameters ground,
         WarpParameters warp,
-        CliffParameters cliff
+        CliffParameters cliff,
+        RegionParameters region
 ) {
     public record PillarParameters(
+            double minimumRadius,
+            double radiusHeightScale,
+            double radiusRange,
             double cellSize,
-            double radius,
             double height,
             double heightRange,
             double upwardTaper,
@@ -48,11 +51,20 @@ public record KarstParameters(
             double detailVerticalScale
     ) {}
 
+    public record RegionParameters(
+            float frequency,
+            double densityThreshold,
+            double foundationAmplitude,
+            int pointsPerCell
+    ) {}
+
     public static KarstParameters defaults() {
         return new KarstParameters(
                 new PillarParameters(
+                        5.0,
+                        0.05,
+                        14.0,
                         1.0 / 0.015f,
-                        0.25 / 0.015f,
                         200,
                         80,
                         0.35,
@@ -77,14 +89,20 @@ public record KarstParameters(
                         0.005f
                 ),
                 new CliffParameters(
-                        0.06 / 0.015f,
+                        0.24,
                         0.01f,
                         1.0,
                         0.4,
-                        0.04 / 0.015f,
+                        0.16,
                         0.045f,
                         1.0,
                         0.6
+                ),
+                new RegionParameters(
+                        0.0015f,
+                        -0.15,
+                        70,
+                        3
                 )
         );
     }

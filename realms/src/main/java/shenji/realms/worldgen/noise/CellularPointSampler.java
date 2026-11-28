@@ -18,9 +18,7 @@ public class CellularPointSampler {
         this.cellSize = cellSize;
     }
 
-    public List<FeaturePoint> getNearbyPoints(
-            double x, double z, double maxRadius
-    ) {
+    public List<FeaturePoint> getNearbyPoints(double x, double z, double maxRadius, int pointsPerCell) {
         int cellX = (int) Math.floor(x / cellSize);
         int cellZ = (int) Math.floor(z / cellSize);
 
@@ -30,15 +28,17 @@ public class CellularPointSampler {
 
         for (int i = cellX - searchRadius; i <= cellX + searchRadius; i++) {
             for (int j = cellZ - searchRadius; j <= cellZ + searchRadius; j++) {
-                list.add(getFeaturePoint(i, j));
+                for (int p = 0; p < pointsPerCell; p++) {
+                    list.add(getFeaturePoint(i, j, p));
+                }
             }
         }
 
         return list;
     }
 
-    public FeaturePoint getFeaturePoint(int cellX, int cellZ) {
-        long cellHash = hashCell(cellX, cellZ);
+    public FeaturePoint getFeaturePoint(int cellX, int cellZ, int index) {
+        long cellHash = hashCell(cellX, cellZ, index);
 
         long hashX = mix(cellHash ^ 0x9e3779b97f4a7c15L);
         long hashZ = mix(cellHash ^ 0xc2b2ae3d27d4eb4fL);
@@ -46,16 +46,18 @@ public class CellularPointSampler {
         double offsetX = hashToUnitDouble(hashX);
         double offsetZ = hashToUnitDouble(hashZ);
 
+
         double x = (cellX + offsetX) * cellSize;
         double z = (cellZ + offsetZ) * cellSize;
 
         return new FeaturePoint(cellHash, x, z);
     }
 
-    private long hashCell(int cellX, int cellZ) {
+    private long hashCell(int cellX, int cellZ, int index) {
         long hash = seed;
         hash ^= (long) cellX * 0x9e3779b97f4a7c15L;
         hash ^= (long) cellZ * 0xc2b2ae3d27d4eb4fL;
+        hash ^= (long) index * 0xa24baed4963ee407L;
         return mix(hash);
     }
 }

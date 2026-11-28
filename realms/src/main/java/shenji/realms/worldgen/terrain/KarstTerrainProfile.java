@@ -16,6 +16,7 @@ public class KarstTerrainProfile implements TerrainProfile {
     private final NoiseSampler2D warpX;
     private final NoiseSampler2D warpZ;
     private final NoiseSampler2D summitSecondary;
+    private final NoiseSampler2D region;
 
     private final NoiseSampler3D cliffVariation;
     private final NoiseSampler3D cliffDetail;
@@ -56,6 +57,11 @@ public class KarstTerrainProfile implements TerrainProfile {
             noise.SetFrequency(params.warp().warpFrequency());
         });
 
+        this.region = noiseFactory.create2D("karst/region", noise -> {
+            noise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+            noise.SetFrequency(params.region().frequency());
+        });
+
         // 3d
         this.cliffVariation = noiseFactory.create3D("karst/cliff_variation", noise -> {
             noise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
@@ -84,8 +90,14 @@ public class KarstTerrainProfile implements TerrainProfile {
     public double sampleDensity(double x, double y, double z) {
 
         // ----- constants ----- //
+        // pillar presence
+        double densityThreshold = params.region().densityThreshold();
+        int pointsPerCell = params.region().pointsPerCell();
+
         // pillar geometry
-        double radius = params.pillar().radius();
+        double minimumRadius = params.pillar().minimumRadius();
+        double radiusHeightScale = params.pillar().radiusHeightScale();
+        double radiusRange = params.pillar().radiusRange();
 
         // domain warping
         double warpAmplitude = params.warp().warpAmplitude();
@@ -129,14 +141,22 @@ public class KarstTerrainProfile implements TerrainProfile {
         double warpedX = warped.x();
         double warpedZ = warped.z();
 
-        // ground
-        double groundHeight = groundBaseHeight + groundAmplitude * ground.sample(x, z);
-        double groundDensity = groundHeight - y;
-
         // horizontal geometry
-        double maxRadius = radius + baseWidening + cliffAmplitude + cliffDetailAmplitude;
+        double maxSummitHeight = pillarHeight + pillarRange;
+        double minFoundationHeight = groundBaseHeight - groundAmplitude;
 
-        var nearbyPillars = pillars.getNearbyPoints(warpedX, warpedZ, maxRadius);
+        double maxPillarHeight = Math.max(0, maxSummitHeight - minFoundationHeight);
+        double maxPillarRadius = minimumRadius + maxPillarHeight * radiusHeightScale + radiusRange;
+
+        double maxRadius = maxPillarRadius
+                * (1.0 + cliffAmplitude + cliffDetailAmplitude)
+                + baseWidening;
+
+        var nearbyPillars = pillars.getNearbyPoints(warpedX, warpedZ, maxRadius, pointsPerCell);
+
+        // ground
+        double groundHeight = sampleGroundHeight(x, z);
+        double groundDensity = groundHeight - y;
 
         // cliff variation
         double radiusVariation = cliffAmplitude * cliffVariation.sample(
@@ -156,7 +176,7 @@ public class KarstTerrainProfile implements TerrainProfile {
         // base widening
         double heightAboveGround = y - groundHeight;
         double normalizedHeight = heightAboveGround / baseTaperHeight;
-        double wideningFactor = Math.max(0.0, Math.min(1.0, 1.0 - normalizedHeight));
+        double wideningFactor = Math.clamp(1.0 - normalizedHeight, 0.0, 1.0);
 
         // density intersection
         double baseRadiusAddition = baseWidening * wideningFactor * wideningFactor;
@@ -164,11 +184,26 @@ public class KarstTerrainProfile implements TerrainProfile {
         double finalDensity = groundDensity;
 
         for (var point : nearbyPillars) {
+            // calculate retention probability
+            double p = Math.clamp((region.sample(point.x(), point.z()) - densityThreshold) / (1 - densityThreshold), 0, 1);
+            long hash = Hashing.mix(point.seed() ^ 0x8cb92ba72f3d8dd7L);
+            double rand = Hashing.hashToUnitDouble(hash);
+            if (rand >= p) {
+                continue;
+            }
+
+            long radiusHash = Hashing.mix(point.seed() ^ 0xd6e8feb86659fd93L);
+
+            double radiusPrimary = Hashing.hashToUnitDouble(radiusHash);
             double summitPrimary = Hashing.hashToSignedDouble(point.seed());
 
-            double summitHeight = pillarHeight
-                    + pillarRange * summitPrimary
-                    + summitDetail;
+            double nominalSummitHeight = pillarHeight + pillarRange * summitPrimary;
+            double summitHeight = nominalSummitHeight + summitDetail;
+
+            double foundationHeight = sampleGroundHeight(point.x(), point.z());
+            double nominalPillarHeight = Math.max(0, nominalSummitHeight - foundationHeight);
+
+            double pillarRadius = minimumRadius + nominalPillarHeight * radiusHeightScale + radiusPrimary * radiusRange;
 
             double pillarDensity = samplePillarDensity(
                     point,
@@ -176,7 +211,8 @@ public class KarstTerrainProfile implements TerrainProfile {
                     groundHeight,
                     summitHeight,
                     radiusCliffVariation,
-                    baseRadiusAddition
+                    baseRadiusAddition,
+                    pillarRadius
             );
 
             finalDensity = Math.max(finalDensity, pillarDensity);
@@ -185,15 +221,19 @@ public class KarstTerrainProfile implements TerrainProfile {
         return finalDensity;
     }
 
+
+
+
+
     private double samplePillarDensity(
             CellularPointSampler.FeaturePoint point,
             DomainWarp.Point3D warped,
             double groundHeight,
             double summitHeight,
             double radiusCliffVariation,
-            double baseRadiusAddition
+            double baseRadiusAddition,
+            double pillarRadius
     ) {
-        double radius = params.pillar().radius();
         double upwardTaper = params.pillar().upwardTaper();
         double edgeLoss = params.summit().edgeLoss();
         double roundingExponent = params.summit().roundingExponent();
@@ -208,17 +248,17 @@ public class KarstTerrainProfile implements TerrainProfile {
         double relativeHeight = (warped.y() - groundHeight) / pillarLength;
         double taperFactor = Math.clamp(relativeHeight, 0.0, 1.0);
 
-        double taperedRadius = radius * (1.0 - upwardTaper * taperFactor);
+        double taperedRadius = pillarRadius * (1.0 - upwardTaper * taperFactor);
 
         // horizontal density
         double effectiveRadius = taperedRadius
-                + radiusCliffVariation
+                + radiusCliffVariation * pillarRadius
                 + baseRadiusAddition;
 
         double horizontalDensity = effectiveRadius - distance;
 
         // summit rounding
-        double normalizedDistance = Math.min(1.0, distance / radius);
+        double normalizedDistance = Math.min(1.0, distance / pillarRadius);
 
         double roundedSummit = summitHeight
                 - edgeLoss * Math.pow(normalizedDistance, roundingExponent);
@@ -227,5 +267,18 @@ public class KarstTerrainProfile implements TerrainProfile {
         double verticalDensity = roundedSummit - warped.y();
 
         return Math.min(horizontalDensity, verticalDensity);
+    }
+
+    private double sampleGroundHeight(double x, double z) {
+        double groundBaseHeight = params.ground().baseHeight();
+        double groundAmplitude = params.ground().amplitude();
+
+        double threshold = params.region().densityThreshold();
+        double foundationAmplitude = params.region().foundationAmplitude();
+
+        double regionValue = Math.clamp((region.sample(x, z) - threshold) / (1 - threshold), 0, 1);
+        double smoothstep = regionValue * regionValue * (3 - 2 * regionValue);
+
+        return groundBaseHeight + groundAmplitude * ground.sample(x, z) + foundationAmplitude * smoothstep;
     }
 }
